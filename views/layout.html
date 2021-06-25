@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=11" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<meta name="robots" content="all,follow" />
+	<link rel="stylesheet" href="//cdn.componentator.com/spa.min@18.css" />
+	<script src="//cdn.componentator.com/spa.min@18.js"></script>
+	@{import('meta', 'head', 'default.css', 'default.js', 'favicon.ico')}
+</head>
+<body data---="exec">
+
+	<div class="container-background">
+		<div class="container">
+			<div class="center">
+				<img src="swagger-banner.webp" style="max-width:500px"/>
+			</div>
+			<br />
+			@{body}
+		</div>
+	</div>
+	<footer>
+		Created by Marek Hazak for <b>GRISSP</b>.
+	</footer>
+
+</body>
+
+<script>
+	
+	function swagger() {
+
+		let api_url = [];
+		let model = {};
+		model.url = GET('url');
+
+		AJAX('POST /swagger/', model, function(response) {
+
+			SET('result', response.paths);
+			
+			Object.keys(response.paths).forEach(x => {
+
+				var indices = [];
+				// find how many '/' are inside url and save their position
+				for(var i = 0; i < x.length; i++) {
+    				if (x[i] === "/") indices.push(i);
+				}
+				
+				if (response.paths[x].post) {
+					
+					// edit types from c# to node.js types
+					for (var y of response.paths[x].post.parameters) {
+						
+						switch (y.type) {
+
+							case 'string':
+								y.type = 'String';
+								break;
+
+							case 'double':
+							case 'integer':
+								y.type = 'Number';
+								break;
+
+							case 'date-time':
+								y.type = 'Date';
+								break;
+
+							case 'boolean':
+								y.type = 'Boolean';
+								break;
+
+						}
+					}
+				}
+
+				// swagger default api => don't add
+				if (!(x.includes('unassignroles') || x.includes('assignroles') || x.includes('auth') || x.includes('register') || x.includes('hello')))
+					api_url.push({ url: x, type: Object.keys(result[[x]])[0], parameters: response.paths[x].post ? response.paths[x].post.parameters : null, lomitka: indices, str_length: x.length });
+
+			});
+
+			let url_names = [];
+
+			// unique names of url's
+			for (var x of api_url) {
+
+				x.name = x.url.substring(x.lomitka[1] + 1, x.lomitka[2]);
+				if (!url_names.find(y => y.name === x.name))
+					url_names.push({ name: x.name });
+
+			}
+
+			let api_final = [];
+
+			// add to array api by unique url name [crud model => employee => read/create/update/remove OR more]
+			for (var x of url_names) 
+				api_final.push(api_url.filter(y => y.name.includes(x.name)));
+			
+			SET('api_url', api_url);
+			SET('api_final', api_final);
+			SET('url_names', url_names);
+
+			// go through all api's
+			for (let [api_group_index, api_group] of api_final.entries()) {
+				
+				api_group.parameters = [];
+
+				for (let [api_index, api] of api_group.entries()) {
+					
+					// find unique parameters (remove duplicates)
+					if (api.parameters) {
+						for (let [params_index, param] of api.parameters.entries()) {
+							if (!api_group.parameters.find(y => y.name === param.name))
+								api_group.parameters.push(param);
+						}
+					}
+
+				}
+
+			}
+
+			// render data to html
+			for (let [api_group_index, api_group] of api_final.entries()) {
+
+				for (let [api_index, api] of api_group.entries()) {
+					
+					let el = $('#' + api.name);
+					let schema = $('#' + api.name + '_schema');
+					let func = $('#' + api.name + '_func');
+
+					
+					// add schema name and url
+					if (api_index == api_group.length -1) {
+						
+						el.html(el.html() + 
+							`<div class="m">
+							
+							<span class="new_schema">NEWSCHEMA(</span>
+							<span class="func_name">\'${ api_group.name }\'</span>, <span class="func">function(schema) {</span></div>
+							
+							<div class="m ml30"><span class="func">const</span> <span class="func_name">url</span> = \'\';</div>`
+						);
+							
+					}
+						
+					// add parameters to schema define
+					if (api.parameters) {
+						
+						for (var param of api_group.parameters) {
+							
+							if (api_index == api_group.length -1)
+								
+								// schema define
+								$(schema).html($(schema).html() + 
+									`<div class="ml30">
+										<span class="func">schema.define(</span>\<span class="func_name">'${ param.name }\'</span>, <span class="new_schema">${ param.type }</span>);</div>`
+								);
+						}
+						
+					}
+
+					// if (api_index == api_group.length -1) {
+					$(func).html($(func).html() + 
+					
+						// addWorkflow 
+						`<div class="ml30">
+							<span class="func">schema.addWorkflow(</span><span class="func_name">'create'</span>, $ <span class="func">=></span> <span class="new_schema">FUNC.${ api.type }</span>($, <span class="url"> url + ${ api.url }</span>, true));
+						`);
+					
+						if (api_index == api_group.length -1) {
+						
+							$(func).html($(func).html() + 
+								`<div class="mt10"><span class="func">}</span><span class="new_schema">);</span></div>`
+							);
+					}
+					
+					api_group.name = api.name;
+
+				}
+
+			}
+		
+			SET('api_final', api_final);
+
+		});
+	}
+
+</script>
+
+</html>

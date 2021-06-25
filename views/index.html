@@ -1,0 +1,30 @@
+<div class="p30">
+
+	<div class="m" data---="input__url__innerlabel:true">Swagger url</div>
+	<button class="exec" data-exec="swagger">Call Swagger</button>
+
+	<h1>Response</h1>
+
+	<div data---="repeater__url_names">
+		
+		<script type="text/html">
+
+			<div class="group">
+
+				<h2>{{ name }}</h2>
+				
+				<code>
+
+					<div id="{{ name }}"></div>
+					<div id="{{ name }}_schema"></div>
+					<div class="mt30" id="{{ name }}_func"></div>
+			
+				</code>
+
+			</div>
+
+		</script>
+
+	</div>
+
+</div>
